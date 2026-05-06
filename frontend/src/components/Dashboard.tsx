@@ -1,4 +1,3 @@
-import React from 'react';
 import { KPI } from '../types/kpi';
 
 interface DashboardProps {

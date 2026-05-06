@@ -1,4 +1,3 @@
-import React from 'react';
 import { Order, OrderUpdateStatus } from '../types/order';
 import { OrderStatusBadge } from './OrderStatusBadge';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Dashboard } from './components/Dashboard';
 import { OrderForm } from './components/OrderForm';
 import { OrderList } from './components/OrderList';
