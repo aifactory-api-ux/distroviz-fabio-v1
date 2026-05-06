@@ -1,24 +1,24 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
-import pytest
-import re
+describe('Index HTML', () => {
+  const htmlPath = resolve(__dirname, '../../public/index.html');
+  let htmlContent: string;
 
-def read_html_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+  beforeAll(() => {
+    htmlContent = readFileSync(htmlPath, 'utf-8');
+  });
 
-class TestIndexHtml:
-    def test_renders_root_div_with_id_root(self):
-        html_content = read_html_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'public', 'index.html'))
-        assert 'id="root"' in html_content or "id='root'" in html_content
+  it('renders root div with id root', () => {
+    expect(htmlContent).toMatch(/id=["']root["']/);
+  });
 
-    def test_contains_correct_meta_viewport_for_responsiveness(self):
-        html_content = read_html_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'public', 'index.html'))
-        assert 'viewport' in html_content.lower()
-        assert 'width=device-width' in html_content or 'width=device-width, initial-scale=1' in html_content
+  it('contains correct meta viewport for responsiveness', () => {
+    expect(htmlContent).toMatch(/viewport/);
+    expect(htmlContent).toMatch(/width=device-width/);
+  });
 
-    def test_contains_title_element(self):
-        html_content = read_html_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'public', 'index.html'))
-        assert '<title' in html_content or '<TITLE' in html_content
+  it('contains title element', () => {
+    expect(htmlContent).toMatch(/<title/i);
+  });
+});

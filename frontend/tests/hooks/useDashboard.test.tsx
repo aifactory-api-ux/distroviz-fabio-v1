@@ -1,23 +1,70 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useDashboard } from '../../src/hooks/useDashboard';
 
-import pytest
-import re
+const mockFetchDashboardMetrics = jest.fn();
+jest.mock('../../src/api/dashboard', () => ({
+  fetchDashboardMetrics: () => mockFetchDashboardMetrics(),
+}));
 
-def read_tsx_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+describe('useDashboard', () => {
+  beforeEach(() => {
+    mockFetchDashboardMetrics.mockClear();
+  });
 
-class TestUseDashboard:
-    def test_returns_dashboard_metrics_on_successful_fetch(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useDashboard.ts'))
-        assert 'useDashboard' in tsx_content or 'DashboardMetrics' in tsx_content
+  it('returns dashboard metrics on successful fetch', async () => {
+    const mockMetrics = {
+      total_orders: 100,
+      pending_orders: 20,
+      dispatched_orders: 30,
+      delivered_orders: 45,
+      orders_by_plant: {},
+      orders_by_distribution_center: {},
+    };
+    mockFetchDashboardMetrics.mockResolvedValue(mockMetrics);
 
-    def test_sets_loading_true_while_fetching(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useDashboard.ts'))
-        assert 'loading' in tsx_content.lower()
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useDashboard();
+      return null;
+    }
 
-    def test_returns_error_on_api_failure(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useDashboard.ts'))
-        assert 'error' in tsx_content.lower()
+    render(<TestComponent />);
+    await waitFor(() => {
+      expect(hookResult.metrics).toEqual(mockMetrics);
+    });
+  });
+
+  it('sets loading true while fetching', async () => {
+    mockFetchDashboardMetrics.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({}), 100))
+    );
+
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useDashboard();
+      return null;
+    }
+
+    render(<TestComponent />);
+    expect(hookResult.loading).toBe(true);
+    await waitFor(() => {
+      expect(hookResult.loading).toBe(false);
+    });
+  });
+
+  it('returns error on API failure', async () => {
+    mockFetchDashboardMetrics.mockRejectedValue(new Error('Network Error'));
+
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useDashboard();
+      return null;
+    }
+
+    render(<TestComponent />);
+    await waitFor(() => {
+      expect(hookResult.error).toBe('Network Error');
+    });
+  });
+});

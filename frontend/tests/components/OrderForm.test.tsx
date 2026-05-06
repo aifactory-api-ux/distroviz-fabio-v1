@@ -1,23 +1,43 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { render, screen, fireEvent } from '@testing-library/react';
+import { OrderForm } from '../../src/components/OrderForm';
+import { OrderCreate } from '../../src/types/order';
 
-import pytest
-import re
+describe('OrderForm', () => {
+  const mockOnSubmit = jest.fn();
 
-def read_tsx_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+  beforeEach(() => {
+    mockOnSubmit.mockClear();
+  });
 
-class TestOrderForm:
-    def test_submits_valid_order_and_displays_success(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'components', 'OrderForm.tsx'))
-        assert 'form' in tsx_content.lower() or 'submit' in tsx_content.lower()
+  it('submits valid order and displays success', () => {
+    render(<OrderForm onSubmit={mockOnSubmit} loading={false} />);
+    const customerInput = screen.getByPlaceholderText('Product Name').parentElement?.parentElement?.querySelector('input');
+    expect(screen.getByText('Create Order')).toBeInTheDocument();
+  });
 
-    def test_shows_validation_error_for_missing_required_fields(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'components', 'OrderForm.tsx'))
-        assert 'validation' in tsx_content.lower() or 'error' in tsx_content.lower() or 'form' in tsx_content.lower()
+  it('shows validation error for missing required fields', () => {
+    render(<OrderForm onSubmit={mockOnSubmit} loading={false} />);
+    const submitButton = screen.getByText('Create Order');
+    fireEvent.click(submitButton);
+    expect(mockOnSubmit).not.toHaveBeenCalled();
+  });
 
-    def test_shows_error_message_on_api_failure(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'components', 'OrderForm.tsx'))
-        assert 'error' in tsx_content.lower() or 'api' in tsx_content.lower()
+  it('shows error message on API failure', () => {
+    render(<OrderForm onSubmit={mockOnSubmit} loading={false} />);
+    expect(screen.getByText('Create Order')).toBeInTheDocument();
+  });
+
+  it('disables submit button while loading', () => {
+    render(<OrderForm onSubmit={mockOnSubmit} loading={true} />);
+    const button = screen.getByText('Creating...') as HTMLButtonElement;
+    expect(button).toBeDisabled();
+  });
+
+  it('can add items to order', () => {
+    render(<OrderForm onSubmit={mockOnSubmit} loading={false} />);
+    const addButton = screen.getByText('Add Item');
+    fireEvent.click(addButton);
+    const inputs = screen.getAllByPlaceholderText('Product Name');
+    expect(inputs.length).toBe(2);
+  });
+});

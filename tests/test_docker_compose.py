@@ -12,7 +12,7 @@ def read_yaml_file(filepath):
 
 class TestDockerCompose:
     def test_docker_compose_services_defined(self):
-        compose = read_yaml_file(os.path.join(os.path.dirname(__file__), '..', '..', 'docker-compose.yml'))
+        compose = read_yaml_file(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'docker-compose.yml'))
         assert 'services' in compose
         services = compose['services']
         assert 'api' in services, "Missing api service"
@@ -20,7 +20,7 @@ class TestDockerCompose:
         assert 'redis' in services, "Missing redis service"
 
     def test_docker_compose_ports_and_envs(self):
-        compose = read_yaml_file(os.path.join(os.path.dirname(__file__), '..', '..', 'docker-compose.yml'))
+        compose = read_yaml_file(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'docker-compose.yml'))
         assert 'services' in compose
         api_service = compose['services'].get('api', {})
         assert 'ports' in api_service or 'expose' in api_service
@@ -28,7 +28,7 @@ class TestDockerCompose:
         assert '23001' in ports_str, "API service must expose port 23001"
 
     def test_docker_compose_postgres_persistence(self):
-        compose = read_yaml_file(os.path.join(os.path.dirname(__file__), '..', '..', 'docker-compose.yml'))
+        compose = read_yaml_file(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'docker-compose.yml'))
         assert 'services' in compose
         assert 'postgres' in compose['services']
         postgres_service = compose['services']['postgres']

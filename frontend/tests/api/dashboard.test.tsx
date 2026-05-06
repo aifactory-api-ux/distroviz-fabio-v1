@@ -1,24 +1,44 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { fetchDashboardMetrics } from '../../src/api/dashboard';
 
-import pytest
-import re
+global.fetch = jest.fn();
 
-def read_ts_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+describe('Dashboard API', () => {
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockClear();
+  });
 
-class TestDashboardApi:
-    def test_fetch_dashboard_metrics_returns_dashboard_metrics_on_200(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'dashboard.ts'))
-        assert 'fetch' in ts_content.lower() or 'get' in ts_content.lower()
-        assert '/api/dashboard' in ts_content or 'dashboard' in ts_content.lower()
+  it('fetchDashboardMetrics returns dashboard metrics on 200', async () => {
+    const mockMetrics = {
+      total_orders: 100,
+      pending_orders: 20,
+      dispatched_orders: 30,
+      delivered_orders: 45,
+      orders_by_plant: {},
+      orders_by_distribution_center: {},
+    };
 
-    def test_throws_error_on_non_200_response(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'dashboard.ts'))
-        assert 'fetch' in ts_content.lower() or 'get' in ts_content.lower()
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockMetrics),
+    });
 
-    def test_handles_network_error_gracefully(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'dashboard.ts'))
-        assert 'fetch' in ts_content.lower() or 'get' in ts_content.lower()
+    const result = await fetchDashboardMetrics();
+    expect(result).toEqual(mockMetrics);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/dashboard'));
+  });
+
+  it('throws error on non-200 response', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    });
+
+    await expect(fetchDashboardMetrics()).rejects.toThrow('API Error: 500');
+  });
+
+  it('handles network error gracefully', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+
+    await expect(fetchDashboardMetrics()).rejects.toThrow('Network Error');
+  });
+});

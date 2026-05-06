@@ -29,6 +29,10 @@ export function useKPI(): {
     loadKPI();
   }, [loadKPI]);
 
+  useEffect(() => {
+    loadKPI();
+  }, [loadKPI]);
+
   return {
     kpi,
     loading,

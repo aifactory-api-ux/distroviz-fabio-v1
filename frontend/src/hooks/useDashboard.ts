@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardMetrics } from '../types/dashboard-metrics';
 import { fetchDashboardMetrics } from '../api/dashboard';
 
@@ -14,7 +14,7 @@ export function useDashboard(): UseDashboardResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshDashboard = async () => {
+  const refreshDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -25,7 +25,7 @@ export function useDashboard(): UseDashboardResult {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshDashboard();

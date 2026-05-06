@@ -1,25 +1,63 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { render, screen } from '@testing-library/react';
+import App from '../src/App';
 
-import pytest
-import re
+jest.mock('../src/hooks/useOrders', () => ({
+  useOrders: () => ({
+    orders: [],
+    loading: false,
+    error: null,
+    createOrder: jest.fn(),
+    updateOrderStatus: jest.fn(),
+    deleteOrder: jest.fn(),
+    deletingId: null,
+  }),
+}));
 
-def read_tsx_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+jest.mock('../src/hooks/useKPI', () => ({
+  useKPI: () => ({
+    kpi: null,
+    loading: false,
+  }),
+}));
 
-class TestApp:
-    def test_renders_dashboard_orderlist_and_orderform_components(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src', 'App.tsx'))
-        assert 'Dashboard' in tsx_content
-        assert 'OrderList' in tsx_content
-        assert 'OrderForm' in tsx_content
+describe('App', () => {
+  it('renders dashboard, orderlist and orderform components', () => {
+    render(<App />);
+    expect(screen.getByText('KPI Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Create Order')).toBeInTheDocument();
+    expect(screen.getByText('Orders')).toBeInTheDocument();
+  });
 
-    def test_renders_theme_switcher_button(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src', 'App.tsx'))
-        assert 'theme' in tsx_content.lower() or 'button' in tsx_content.lower()
+  it('renders header with title', () => {
+    render(<App />);
+    expect(screen.getByText('Order Management System')).toBeInTheDocument();
+  });
 
-    def test_layout_is_responsive_on_mobile_and_desktop(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src', 'App.tsx'))
-        assert 'Dashboard' in tsx_content and 'OrderList' in tsx_content
+  it('displays error message when there is an orders error', () => {
+    (jest.requireMock('../src/hooks/useOrders') as any).useOrders.mockReturnValueOnce({
+      orders: [],
+      loading: false,
+      error: 'Failed to load',
+      createOrder: jest.fn(),
+      updateOrderStatus: jest.fn(),
+      deleteOrder: jest.fn(),
+      deletingId: null,
+    });
+    render(<App />);
+    expect(screen.getByText('Error: Failed to load')).toBeInTheDocument();
+  });
+
+  it('displays loading state when orders are loading', () => {
+    (jest.requireMock('../src/hooks/useOrders') as any).useOrders.mockReturnValueOnce({
+      orders: [],
+      loading: true,
+      error: null,
+      createOrder: jest.fn(),
+      updateOrderStatus: jest.fn(),
+      deleteOrder: jest.fn(),
+      deletingId: null,
+    });
+    render(<App />);
+    expect(screen.getByText('Loading orders...')).toBeInTheDocument();
+  });
+});

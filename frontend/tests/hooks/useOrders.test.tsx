@@ -1,23 +1,83 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import { render, screen, waitFor } from '@testing-library/react';
+import { useOrders } from '../../src/hooks/useOrders';
+import { OrderCreate } from '../../src/types/order';
 
-import pytest
-import re
+const mockFetchOrders = jest.fn();
+const mockCreateOrder = jest.fn();
+const mockUpdateOrderStatus = jest.fn();
+const mockDeleteOrder = jest.fn();
 
-def read_tsx_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+jest.mock('../../src/api/orders', () => ({
+  fetchOrders: () => mockFetchOrders(),
+  createOrder: (order: OrderCreate) => mockCreateOrder(order),
+  updateOrderStatus: (id: number, status: any) => mockUpdateOrderStatus(id, status),
+  deleteOrder: (id: number) => mockDeleteOrder(id),
+}));
 
-class TestUseOrders:
-    def test_returns_orders_array_on_successful_fetch(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useOrders.ts'))
-        assert 'useOrders' in tsx_content or 'orders' in tsx_content.lower()
+describe('useOrders', () => {
+  beforeEach(() => {
+    mockFetchOrders.mockClear();
+    mockCreateOrder.mockClear();
+    mockUpdateOrderStatus.mockClear();
+    mockDeleteOrder.mockClear();
+  });
 
-    def test_sets_loading_true_while_fetching(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useOrders.ts'))
-        assert 'loading' in tsx_content.lower()
+  it('returns orders array on successful fetch', async () => {
+    const mockOrders = [
+      {
+        id: 1,
+        customerName: 'John',
+        address: '123 Main St',
+        status: 'pending' as const,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        items: [],
+      },
+    ];
+    mockFetchOrders.mockResolvedValue(mockOrders);
 
-    def test_returns_error_on_api_failure(self):
-        tsx_content = read_tsx_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'hooks', 'useOrders.ts'))
-        assert 'error' in tsx_content.lower()
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useOrders();
+      return null;
+    }
+
+    render(<TestComponent />);
+    await waitFor(() => {
+      expect(hookResult.orders).toEqual(mockOrders);
+    });
+  });
+
+  it('sets loading true while fetching', async () => {
+    mockFetchOrders.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([]), 100))
+    );
+
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useOrders();
+      return null;
+    }
+
+    render(<TestComponent />);
+    expect(hookResult.loading).toBe(true);
+    await waitFor(() => {
+      expect(hookResult.loading).toBe(false);
+    });
+  });
+
+  it('returns error on API failure', async () => {
+    mockFetchOrders.mockRejectedValue(new Error('Failed to load orders'));
+
+    let hookResult: any;
+    function TestComponent() {
+      hookResult = useOrders();
+      return null;
+    }
+
+    render(<TestComponent />);
+    await waitFor(() => {
+      expect(hookResult.error).toBe('Failed to load orders');
+    });
+  });
+});

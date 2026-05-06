@@ -1,25 +1,100 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import {
+  fetchOrders,
+  createOrder,
+  updateOrderStatus,
+  deleteOrder,
+} from '../../src/api/orders';
+import { OrderCreate } from '../../src/types/order';
 
-import pytest
-import re
+global.fetch = jest.fn();
 
-def read_ts_file(filepath):
-    with open(filepath, 'r') as f:
-        return f.read()
+describe('Orders API', () => {
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockClear();
+  });
 
-class TestOrdersApi:
-    def test_fetch_orders_returns_array_of_order_on_200(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'orders.ts'))
-        assert 'fetch' in ts_content.lower() or 'get' in ts_content.lower()
-        assert '/api/orders' in ts_content or 'orders' in ts_content.lower()
+  it('fetchOrders returns array of orders on 200', async () => {
+    const mockOrders = [
+      {
+        id: 1,
+        customerName: 'John',
+        address: '123 Main St',
+        status: 'pending',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        items: [],
+      },
+    ];
 
-    def test_create_order_returns_order_on_201(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'orders.ts'))
-        assert 'fetch' in ts_content.lower() or 'post' in ts_content.lower() or 'create' in ts_content.lower()
-        assert '/api/orders' in ts_content or 'orders' in ts_content.lower()
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockOrders),
+    });
 
-    def test_create_order_throws_error_on_validation_failure(self):
-        ts_content = read_ts_file(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'api', 'orders.ts'))
-        assert 'fetch' in ts_content.lower() or 'post' in ts_content.lower() or 'create' in ts_content.lower()
+    const result = await fetchOrders();
+    expect(result).toEqual(mockOrders);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/orders'));
+  });
+
+  it('createOrder returns order on 201', async () => {
+    const mockOrder: OrderCreate = {
+      customerName: 'John',
+      address: '123 Main St',
+      items: [],
+    };
+    const mockResponse = { id: 1, ...mockOrder, status: 'pending' };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+
+    const result = await createOrder(mockOrder);
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/orders'),
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('createOrder throws error on validation failure', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+    });
+
+    await expect(createOrder({ customerName: '', address: '', items: [] })).rejects.toThrow(
+      'Failed to create order'
+    );
+  });
+
+  it('updateOrderStatus updates and returns order', async () => {
+    const mockResponse = { id: 1, status: 'delivered' };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+
+    const result = await updateOrderStatus(1, { status: 'delivered' });
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/orders/1/status'),
+      expect.objectContaining({ method: 'PATCH' })
+    );
+  });
+
+  it('deleteOrder returns success', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
+    });
+
+    const result = await deleteOrder(1);
+    expect(result).toEqual({ success: true });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/orders/1'),
+      expect.objectContaining({ method: 'DELETE' })
+    );
+  });
+});
