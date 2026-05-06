@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: distroviz_postgres
+    environment:
+      POSTGRES_USER: distroviz
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: distroviz
+    ports:
+      - "25432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U distroviz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: distroviz_redis
+    ports:
+      - "26379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: distroviz_api
+    environment:
+      NODE_ENV: development
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: distroviz
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: distroviz
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 23001
+    ports:
+      - "23001:23001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:23001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: distroviz_frontend
+    ports:
+      - "24000:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

@@ -1,0 +1,118 @@
+# API_CONTRACT.md
+
+## Endpoints
+
+---
+
+### 1. GET /api/dashboard
+
+| Property         | Value                |
+|------------------|---------------------|
+| HTTP Method      | GET                 |
+| Path             | /api/dashboard      |
+| Auth Required    | No                  |
+| Request Body     | None                |
+| Response Status  | 200 OK              |
+| Response Body    | [`DashboardMetrics`](#dashboardmetrics-schema) |
+
+#### DashboardMetrics Schema
+
+| Field                              | Type                     | Required |
+|-------------------------------------|--------------------------|----------|
+| total_orders                       | number                   | Yes      |
+| pending_orders                     | number                   | Yes      |
+| dispatched_orders                  | number                   | Yes      |
+| delivered_orders                   | number                   | Yes      |
+| orders_by_plant                    | Record<string, number>   | Yes      |
+| orders_by_distribution_center      | Record<string, number>   | Yes      |
+
+---
+
+### 2. GET /api/orders
+
+| Property         | Value                |
+|------------------|---------------------|
+| HTTP Method      | GET                 |
+| Path             | /api/orders         |
+| Auth Required    | No                  |
+| Request Body     | None                |
+| Response Status  | 200 OK              |
+| Response Body    | Array of [`Order`](#order-schema) |
+
+#### Order Schema
+
+| Field                | Type                                             | Required |
+|----------------------|--------------------------------------------------|----------|
+| id                   | number                                           | Yes      |
+| product_name         | string                                           | Yes      |
+| quantity             | number                                           | Yes      |
+| plant                | string                                           | Yes      |
+| distribution_center  | string                                           | Yes      |
+| status               | 'pending' \| 'dispatched' \| 'delivered'         | Yes      |
+| created_at           | string (ISO8601)                                 | Yes      |
+| updated_at           | string (ISO8601)                                 | Yes      |
+
+---
+
+### 3. POST /api/orders
+
+| Property         | Value                |
+|------------------|---------------------|
+| HTTP Method      | POST                |
+| Path             | /api/orders         |
+| Auth Required    | No                  |
+| Request Body     | [`CreateOrderDto`](#createorderdto-schema) |
+| Response Status  | 201 Created         |
+| Response Body    | [`Order`](#order-schema) |
+
+#### CreateOrderDto Schema
+
+| Field                | Type     | Required |
+|----------------------|----------|----------|
+| product_name         | string   | Yes      |
+| quantity             | number   | Yes      |
+| plant                | string   | Yes      |
+| distribution_center  | string   | Yes      |
+
+---
+
+## Schemas
+
+### DashboardMetrics
+
+```typescript
+export interface DashboardMetrics {
+  total_orders: number;
+  pending_orders: number;
+  dispatched_orders: number;
+  delivered_orders: number;
+  orders_by_plant: Record<string, number>;
+  orders_by_distribution_center: Record<string, number>;
+}
+```
+
+### Order
+
+```typescript
+export interface Order {
+  id: number;
+  product_name: string;
+  quantity: number;
+  plant: string;
+  distribution_center: string;
+  status: 'pending' | 'dispatched' | 'delivered';
+  created_at: string; // ISO8601
+  updated_at: string; // ISO8601
+}
+```
+
+### CreateOrderDto
+
+```typescript
+export interface CreateOrderDto {
+  product_name: string;
+  quantity: number;
+  plant: string;
+  distribution_center: string;
+}
+```
