@@ -1,60 +1,54 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dashboard } from './components/Dashboard';
-import { OrderList } from './components/OrderList';
 import { OrderForm } from './components/OrderForm';
-import { useDashboard } from './hooks/useDashboard';
+import { OrderList } from './components/OrderList';
 import { useOrders } from './hooks/useOrders';
+import { useKPI } from './hooks/useKPI';
+import './styles/main.css';
 
-function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const { metrics, loading: dashboardLoading, error: dashboardError, refreshDashboard } = useDashboard();
-  const { orders, loading: ordersLoading, error: ordersError, createOrder, refreshOrders } = useOrders();
+export default function App() {
+  const {
+    orders,
+    loading: ordersLoading,
+    error: ordersError,
+    createOrder,
+    updateOrderStatus,
+    deleteOrder,
+    deletingId,
+  } = useOrders();
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const { kpi, loading: kpiLoading } = useKPI();
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      padding: '20px',
-      backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-      color: theme === 'dark' ? '#ffffff' : '#000000'
-    }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>DistroViz - Distribution Visualization</h1>
-        <button
-          data-testid="theme-switcher"
-          onClick={toggleTheme}
-          style={{
-            padding: '10px 20px',
-            cursor: 'pointer',
-            backgroundColor: theme === 'dark' ? '#444' : '#ddd',
-            color: theme === 'dark' ? '#fff' : '#000',
-            border: 'none',
-            borderRadius: '5px'
-          }}
-        >
-          Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
-        </button>
+    <div className="app-container">
+      <header className="app-header">
+        <h1>Order Management System</h1>
       </header>
 
-      <Dashboard metrics={metrics} loading={dashboardLoading} />
-      {dashboardError && <div style={{ color: 'red', padding: '10px' }}>Error: {dashboardError}</div>}
+      <main className="app-main">
+        {ordersError && <p className="error-message">Error: {ordersError}</p>}
 
-      <OrderList orders={orders} loading={ordersLoading} />
-      {ordersError && <div style={{ color: 'red', padding: '10px' }}>Error: {ordersError}</div>}
+        <section className="dashboard-section">
+          <Dashboard kpi={kpi} loading={kpiLoading} />
+        </section>
 
-      <OrderForm
-        onSubmit={async (data) => {
-          await createOrder(data);
-          await refreshDashboard();
-          await refreshOrders();
-        }}
-        loading={ordersLoading}
-      />
+        <section className="order-form-section">
+          <OrderForm onSubmit={createOrder} loading={ordersLoading} />
+        </section>
+
+        <section className="order-list-section">
+          {ordersLoading && orders.length === 0 ? (
+            <p>Loading orders...</p>
+          ) : (
+            <OrderList
+              orders={orders}
+              onUpdateStatus={updateOrderStatus}
+              onDelete={deleteOrder}
+              deletingId={deletingId}
+            />
+          )}
+        </section>
+      </main>
     </div>
   );
 }
-
-export default App;

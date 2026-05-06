@@ -2,48 +2,61 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15
+    image: postgres:15.5
     container_name: distroviz_postgres
     environment:
       POSTGRES_USER: distroviz
-      POSTGRES_PASSWORD: supersecret
-      POSTGRES_DB: distroviz
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: distroviz_db
     ports:
       - "25432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U distroviz"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U distroviz -d distroviz_db"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
-    image: redis:7
+    image: redis:7.2.4-alpine
     container_name: distroviz_redis
     ports:
       - "26379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13.1-management-alpine
+    container_name: distroviz_rabbitmq
+    ports:
+      - "25672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  api:
+  order-service:
     build:
-      context: ./backend
+      context: ./backend/order-service
       dockerfile: Dockerfile
-    container_name: distroviz_api
+    container_name: distroviz_order_service
     environment:
-      NODE_ENV: development
+      SERVICE_PORT: 23001
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: distroviz
-      POSTGRES_PASSWORD: supersecret
-      POSTGRES_DB: distroviz
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: distroviz_db
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      PORT: 23001
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
     ports:
       - "23001:23001"
     depends_on:
@@ -51,21 +64,48 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:23001/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      rabbitmq:
+        condition: service_healthy
+
+  kpi-service:
+    build:
+      context: ./backend/kpi-service
+      dockerfile: Dockerfile
+    container_name: distroviz_kpi_service
+    environment:
+      SERVICE_PORT: 23002
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: distroviz
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: distroviz_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+    ports:
+      - "23002:23002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: distroviz_frontend
+    environment:
+      VITE_API_URL: http://localhost:23001
+      VITE_KPI_API_URL: http://localhost:23002
     ports:
-      - "24000:80"
+      - "25080:3000"
     depends_on:
-      - api
+      - order-service
+      - kpi-service
 
 volumes:
-  db_data:
+  postgres_data:

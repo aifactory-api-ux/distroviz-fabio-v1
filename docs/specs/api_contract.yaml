@@ -1,118 +1,118 @@
 # API_CONTRACT.md
 
-## Endpoints
+## Orders API
 
----
+### List Orders
 
-### 1. GET /api/dashboard
+| Method | Path         | Auth Required | Request Body | Response Schema | Status Codes |
+|--------|--------------|--------------|--------------|----------------|-------------|
+| GET    | /api/orders  | No           | None         | `Order[]`      | 200         |
 
-| Property         | Value                |
-|------------------|---------------------|
-| HTTP Method      | GET                 |
-| Path             | /api/dashboard      |
-| Auth Required    | No                  |
-| Request Body     | None                |
-| Response Status  | 200 OK              |
-| Response Body    | [`DashboardMetrics`](#dashboardmetrics-schema) |
-
-#### DashboardMetrics Schema
-
-| Field                              | Type                     | Required |
-|-------------------------------------|--------------------------|----------|
-| total_orders                       | number                   | Yes      |
-| pending_orders                     | number                   | Yes      |
-| dispatched_orders                  | number                   | Yes      |
-| delivered_orders                   | number                   | Yes      |
-| orders_by_plant                    | Record<string, number>   | Yes      |
-| orders_by_distribution_center      | Record<string, number>   | Yes      |
-
----
-
-### 2. GET /api/orders
-
-| Property         | Value                |
-|------------------|---------------------|
-| HTTP Method      | GET                 |
-| Path             | /api/orders         |
-| Auth Required    | No                  |
-| Request Body     | None                |
-| Response Status  | 200 OK              |
-| Response Body    | Array of [`Order`](#order-schema) |
-
-#### Order Schema
-
-| Field                | Type                                             | Required |
-|----------------------|--------------------------------------------------|----------|
-| id                   | number                                           | Yes      |
-| product_name         | string                                           | Yes      |
-| quantity             | number                                           | Yes      |
-| plant                | string                                           | Yes      |
-| distribution_center  | string                                           | Yes      |
-| status               | 'pending' \| 'dispatched' \| 'delivered'         | Yes      |
-| created_at           | string (ISO8601)                                 | Yes      |
-| updated_at           | string (ISO8601)                                 | Yes      |
-
----
-
-### 3. POST /api/orders
-
-| Property         | Value                |
-|------------------|---------------------|
-| HTTP Method      | POST                |
-| Path             | /api/orders         |
-| Auth Required    | No                  |
-| Request Body     | [`CreateOrderDto`](#createorderdto-schema) |
-| Response Status  | 201 Created         |
-| Response Body    | [`Order`](#order-schema) |
-
-#### CreateOrderDto Schema
-
-| Field                | Type     | Required |
-|----------------------|----------|----------|
-| product_name         | string   | Yes      |
-| quantity             | number   | Yes      |
-| plant                | string   | Yes      |
-| distribution_center  | string   | Yes      |
-
----
-
-## Schemas
-
-### DashboardMetrics
+#### `Order` schema
 
 ```typescript
-export interface DashboardMetrics {
-  total_orders: number;
-  pending_orders: number;
-  dispatched_orders: number;
-  delivered_orders: number;
-  orders_by_plant: Record<string, number>;
-  orders_by_distribution_center: Record<string, number>;
-}
-```
-
-### Order
-
-```typescript
-export interface Order {
+{
   id: number;
-  product_name: string;
-  quantity: number;
-  plant: string;
-  distribution_center: string;
-  status: 'pending' | 'dispatched' | 'delivered';
-  created_at: string; // ISO8601
-  updated_at: string; // ISO8601
+  customerName: string;
+  address: string;
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+  createdAt: string; // ISO8601
+  updatedAt: string; // ISO8601
+  items: OrderItem[];
 }
 ```
 
-### CreateOrderDto
+#### `OrderItem` schema
 
 ```typescript
-export interface CreateOrderDto {
-  product_name: string;
+{
+  id: number;
+  orderId: number;
+  productName: string;
   quantity: number;
-  plant: string;
-  distribution_center: string;
+  unitPrice: number;
+}
+```
+
+---
+
+### Get Order by ID
+
+| Method | Path              | Auth Required | Request Body | Response Schema | Status Codes |
+|--------|-------------------|--------------|--------------|----------------|-------------|
+| GET    | /api/orders/:id   | No           | None         | `Order`        | 200         |
+
+---
+
+### Create Order
+
+| Method | Path         | Auth Required | Request Body    | Response Schema | Status Codes |
+|--------|--------------|--------------|-----------------|----------------|-------------|
+| POST   | /api/orders  | No           | `OrderCreate`   | `Order`        | 201         |
+
+#### `OrderCreate` schema
+
+```typescript
+{
+  customerName: string;
+  address: string;
+  items: OrderItemCreate[];
+}
+```
+
+#### `OrderItemCreate` schema
+
+```typescript
+{
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+```
+
+---
+
+### Update Order Status
+
+| Method | Path                        | Auth Required | Request Body         | Response Schema | Status Codes |
+|--------|-----------------------------|--------------|----------------------|----------------|-------------|
+| PATCH  | /api/orders/:id/status      | No           | `OrderUpdateStatus`  | `Order`        | 200         |
+
+#### `OrderUpdateStatus` schema
+
+```typescript
+{
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+}
+```
+
+---
+
+### Delete Order
+
+| Method | Path              | Auth Required | Request Body | Response Schema         | Status Codes |
+|--------|-------------------|--------------|--------------|------------------------|-------------|
+| DELETE | /api/orders/:id   | No           | None         | { success: boolean }   | 200         |
+
+---
+
+## KPI Dashboard API
+
+### Get KPIs
+
+| Method | Path      | Auth Required | Request Body | Response Schema | Status Codes |
+|--------|-----------|--------------|--------------|----------------|-------------|
+| GET    | /api/kpi  | No           | None         | `KPI`          | 200         |
+
+#### `KPI` schema
+
+```typescript
+{
+  totalOrders: number;
+  deliveredOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  inTransitOrders: number;
+  averageDeliveryTimeMinutes: number;
 }
 ```

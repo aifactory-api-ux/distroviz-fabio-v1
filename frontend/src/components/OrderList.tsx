@@ -1,62 +1,99 @@
 import React from 'react';
-import { Order } from '../types/order';
+import { Order, OrderUpdateStatus } from '../types/order';
+import { OrderStatusBadge } from './OrderStatusBadge';
 
 interface OrderListProps {
   orders: Order[];
-  loading: boolean;
+  onUpdateStatus: (id: number, status: OrderUpdateStatus) => void;
+  onDelete: (id: number) => void;
+  deletingId: number | null;
 }
 
-export function OrderList({ orders, loading }: OrderListProps) {
-  if (loading) {
-    return <div>Loading orders...</div>;
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div data-testid="empty-state" style={{ padding: '20px', textAlign: 'center' }}>
-        No orders found
-      </div>
-    );
-  }
+export function OrderList({
+  orders,
+  onUpdateStatus,
+  onDelete,
+  deletingId,
+}: OrderListProps) {
+  const statuses: Array<'pending' | 'in_transit' | 'delivered' | 'cancelled'> = [
+    'pending',
+    'in_transit',
+    'delivered',
+    'cancelled',
+  ];
 
   return (
-    <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Orders</h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom: '2px solid #ccc' }}>
-            <th style={{ padding: '10px', textAlign: 'left' }}>ID</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Product</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Quantity</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Plant</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Distribution Center</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Status</th>
-            <th style={{ padding: '10px', textAlign: 'left' }}>Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map(order => (
-            <tr key={order.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px' }}>{order.id}</td>
-              <td style={{ padding: '10px' }}>{order.product_name}</td>
-              <td style={{ padding: '10px' }}>{order.quantity}</td>
-              <td style={{ padding: '10px' }}>{order.plant}</td>
-              <td style={{ padding: '10px' }}>{order.distribution_center}</td>
-              <td style={{ padding: '10px' }}>
-                <span style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: order.status === 'pending' ? '#ffc107' : order.status === 'dispatched' ? '#17a2b8' : '#28a745',
-                  color: '#fff'
-                }}>
-                  {order.status}
-                </span>
-              </td>
-              <td style={{ padding: '10px' }}>{new Date(order.created_at).toLocaleDateString()}</td>
+    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '16px' }}>Orders</h2>
+      {orders.length === 0 ? (
+        <p>No orders found.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
+              <th style={{ padding: '8px' }}>ID</th>
+              <th style={{ padding: '8px' }}>Customer</th>
+              <th style={{ padding: '8px' }}>Address</th>
+              <th style={{ padding: '8px' }}>Status</th>
+              <th style={{ padding: '8px' }}>Items</th>
+              <th style={{ padding: '8px' }}>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px' }}>{order.id}</td>
+                <td style={{ padding: '8px' }}>{order.customerName}</td>
+                <td style={{ padding: '8px' }}>{order.address}</td>
+                <td style={{ padding: '8px' }}>
+                  <OrderStatusBadge status={order.status} />
+                </td>
+                <td style={{ padding: '8px' }}>
+                  {order.items.length} item(s)
+                  <br />
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    Total: $
+                    {order.items
+                      .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+                      .toFixed(2)}
+                  </span>
+                </td>
+                <td style={{ padding: '8px' }}>
+                  <select
+                    value={order.status}
+                    onChange={(e) =>
+                      onUpdateStatus(order.id, {
+                        status: e.target.value as OrderUpdateStatus['status'],
+                      })
+                    }
+                    style={{ padding: '4px', marginRight: '8px' }}
+                  >
+                    {statuses.map((s) => (
+                      <option key={s} value={s}>
+                        {s.replace('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => onDelete(order.id)}
+                    disabled={deletingId === order.id}
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#ef4444',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: deletingId === order.id ? 'not-allowed' : 'pointer',
+                      opacity: deletingId === order.id ? 0.6 : 1,
+                    }}
+                  >
+                    {deletingId === order.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

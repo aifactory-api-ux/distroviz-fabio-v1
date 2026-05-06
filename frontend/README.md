@@ -1,27 +1,13 @@
-# DistroViz Frontend
+# Frontend
 
-React frontend for the Distribution Visualization application.
-
-## Setup
-
-Copy `.env.example` to `.env` and configure the environment variables.
-
-## Running the Application
-
-```bash
-npm install
-npm run dev
-```
-
-## Components
-
-- **Dashboard**: Displays metrics about orders
-- **OrderList**: Shows list of all orders
-- **OrderForm**: Form to create new orders
+React-based frontend for the Order Management System.
 
 ## Available Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
-- `npm run test` - Run tests
-- `npm run lint` - Run linter
+- `npm run preview` - Preview production build
+
+## Environment Variables
+
+See `.env.example` for configuration options.

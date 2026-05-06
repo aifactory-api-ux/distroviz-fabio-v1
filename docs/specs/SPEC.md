@@ -3,392 +3,404 @@
 ## 1. TECHNOLOGY STACK
 
 - **Backend**
-  - Node.js v20.x
-  - NestJS v10.x
-  - TypeScript v5.x
-  - PostgreSQL v15.x (database)
-  - Redis v7.x (cache)
+  - Node.js v20.11.1
+  - NestJS v10.2.7
+  - TypeScript v5.3.3
+  - PostgreSQL v15.5
+  - Redis v7.2.4
+  - RabbitMQ v3.13.1
 - **Frontend**
-  - React v18.x
-  - TypeScript v5.x
+  - React v18.2.0
+  - TypeScript v5.3.3
+  - Vite v5.2.0
 - **Infrastructure**
-  - Docker v24.x
-  - docker-compose v2.x
-
----
+  - Docker v25.0.3
+  - docker-compose v2.24.6
+  - Kubernetes v1.29.2
 
 ## 2. DATA CONTRACTS
 
-### Backend (NestJS/TypeScript)
+### Backend (TypeScript/NestJS) — DTOs
 
 ```typescript
-// backend/src/orders/dto/order.dto.ts
+// backend/order-service/src/orders/dto/order.dto.ts
 export interface Order {
   id: number;
-  product_name: string;
-  quantity: number;
-  plant: string;
-  distribution_center: string;
-  status: 'pending' | 'dispatched' | 'delivered';
-  created_at: string; // ISO8601
-  updated_at: string; // ISO8601
+  customerName: string;
+  address: string;
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+  createdAt: string; // ISO8601
+  updatedAt: string; // ISO8601
+  items: OrderItem[];
 }
 
-// backend/src/dashboard/dto/dashboard-metrics.dto.ts
-export interface DashboardMetrics {
-  total_orders: number;
-  pending_orders: number;
-  dispatched_orders: number;
-  delivered_orders: number;
-  orders_by_plant: Record<string, number>;
-  orders_by_distribution_center: Record<string, number>;
+export interface OrderItem {
+  id: number;
+  orderId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderCreate {
+  customerName: string;
+  address: string;
+  items: OrderItemCreate[];
+}
+
+export interface OrderItemCreate {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderUpdateStatus {
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
 }
 ```
 
-### Frontend (React/TypeScript)
+### Frontend (TypeScript/React) — Interfaces
 
 ```typescript
 // frontend/src/types/order.ts
 export interface Order {
   id: number;
-  product_name: string;
-  quantity: number;
-  plant: string;
-  distribution_center: string;
-  status: 'pending' | 'dispatched' | 'delivered';
-  created_at: string; // ISO8601
-  updated_at: string; // ISO8601
+  customerName: string;
+  address: string;
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
 }
 
-// frontend/src/types/dashboard-metrics.ts
-export interface DashboardMetrics {
-  total_orders: number;
-  pending_orders: number;
-  dispatched_orders: number;
-  delivered_orders: number;
-  orders_by_plant: Record<string, number>;
-  orders_by_distribution_center: Record<string, number>;
+export interface OrderItem {
+  id: number;
+  orderId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderCreate {
+  customerName: string;
+  address: string;
+  items: OrderItemCreate[];
+}
+
+export interface OrderItemCreate {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderUpdateStatus {
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled';
 }
 ```
 
-### Order Creation DTO
+### Shared KPI Model
 
 ```typescript
-// backend/src/orders/dto/create-order.dto.ts
-export interface CreateOrderDto {
-  product_name: string;
-  quantity: number;
-  plant: string;
-  distribution_center: string;
+// backend/shared/kpi.dto.ts
+export interface KPI {
+  totalOrders: number;
+  deliveredOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  inTransitOrders: number;
+  averageDeliveryTimeMinutes: number;
 }
 ```
 
 ```typescript
-// frontend/src/types/create-order.ts
-export interface CreateOrder {
-  product_name: string;
-  quantity: number;
-  plant: string;
-  distribution_center: string;
+// frontend/src/types/kpi.ts
+export interface KPI {
+  totalOrders: number;
+  deliveredOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  inTransitOrders: number;
+  averageDeliveryTimeMinutes: number;
 }
 ```
-
----
 
 ## 3. API ENDPOINTS
 
-### GET /api/dashboard
+### Orders API
 
-- **Method:** GET
-- **Path:** /api/dashboard
-- **Request Body:** None
-- **Response:**
-  - Status: 200 OK
-  - Body: `DashboardMetrics` (see Data Contracts)
+#### List Orders
 
-```json
-{
-  "total_orders": 120,
-  "pending_orders": 30,
-  "dispatched_orders": 60,
-  "delivered_orders": 30,
-  "orders_by_plant": {
-    "Plant A": 50,
-    "Plant B": 70
-  },
-  "orders_by_distribution_center": {
-    "DC North": 60,
-    "DC South": 60
-  }
-}
-```
+- **GET** `/api/orders`
+  - **Request:** None
+  - **Response:** `Order[]`
 
----
+#### Get Order by ID
 
-### GET /api/orders
+- **GET** `/api/orders/:id`
+  - **Request:** None
+  - **Response:** `Order`
 
-- **Method:** GET
-- **Path:** /api/orders
-- **Request Body:** None
-- **Response:**
-  - Status: 200 OK
-  - Body: `Order[]` (see Data Contracts)
+#### Create Order
 
-```json
-[
-  {
-    "id": 1,
-    "product_name": "Producto X",
-    "quantity": 100,
-    "plant": "Plant A",
-    "distribution_center": "DC North",
-    "status": "pending",
-    "created_at": "2024-06-01T12:00:00Z",
-    "updated_at": "2024-06-01T12:00:00Z"
-  }
-]
-```
+- **POST** `/api/orders`
+  - **Request Body:** `OrderCreate`
+  - **Response:** `Order`
 
----
+#### Update Order Status
 
-### POST /api/orders
+- **PATCH** `/api/orders/:id/status`
+  - **Request Body:** `OrderUpdateStatus`
+  - **Response:** `Order`
 
-- **Method:** POST
-- **Path:** /api/orders
-- **Request Body:** `CreateOrderDto` (see Data Contracts)
-- **Response:**
-  - Status: 201 Created
-  - Body: `Order` (see Data Contracts)
+#### Delete Order
 
-```json
-{
-  "id": 2,
-  "product_name": "Producto Y",
-  "quantity": 50,
-  "plant": "Plant B",
-  "distribution_center": "DC South",
-  "status": "pending",
-  "created_at": "2024-06-01T13:00:00Z",
-  "updated_at": "2024-06-01T13:00:00Z"
-}
-```
+- **DELETE** `/api/orders/:id`
+  - **Request:** None
+  - **Response:** `{ success: boolean }`
 
----
+### KPI Dashboard API
+
+#### Get KPIs
+
+- **GET** `/api/kpi`
+  - **Request:** None
+  - **Response:** `KPI`
 
 ## 4. FILE STRUCTURE
 
 ### PORT TABLE
 
-| Service    | Listening Port | Path                      |
-|------------|---------------|---------------------------|
-| api        | 23001         | backend/                  |
+| Service           | Listening Port | Path                        |
+|-------------------|---------------|-----------------------------|
+| order-service     | 23001         | backend/order-service/      |
+| kpi-service       | 23002         | backend/kpi-service/        |
+
+### SHARED MODULES
+
+| Shared path         | Imported by services           |
+|---------------------|-------------------------------|
+| backend/shared/     | order-service, kpi-service    |
 
 ### FILE TREE
 
 ```
 .
 ├── backend/
-│   ├── Dockerfile                # Docker build for NestJS API
-│   ├── src/
-│   │   ├── main.ts               # NestJS entry point
-│   │   ├── app.module.ts         # Root module
-│   │   ├── orders/
-│   │   │   ├── orders.controller.ts   # Orders API controller
-│   │   │   ├── orders.service.ts      # Orders business logic
-│   │   │   ├── orders.module.ts       # Orders module
-│   │   │   ├── dto/
-│   │   │   │   ├── order.dto.ts           # Order interface
-│   │   │   │   └── create-order.dto.ts    # CreateOrderDto interface
-│   │   ├── dashboard/
-│   │   │   ├── dashboard.controller.ts    # Dashboard API controller
-│   │   │   ├── dashboard.service.ts       # Dashboard business logic
-│   │   │   ├── dashboard.module.ts        # Dashboard module
-│   │   │   └── dto/
-│   │   │       └── dashboard-metrics.dto.ts # DashboardMetrics interface
-│   │   ├── database/
-│   │   │   ├── database.module.ts         # PostgreSQL connection module
-│   │   │   └── entities/
-│   │   │       └── order.entity.ts        # TypeORM entity for Order
-│   │   ├── cache/
-│   │   │   ├── cache.module.ts            # Redis connection module
-│   │   │   └── cache.service.ts           # Redis cache service
-│   ├── .env.example                  # Backend environment variables template
-│   ├── tsconfig.json                 # TypeScript config
-│   ├── package.json                  # NPM dependencies
-│   └── README.md                     # Backend documentation
+│   ├── shared/                                 # Shared DTOs and utilities
+│   │   ├── kpi.dto.ts                         # KPI interface
+│   │   └── index.ts                           # Exports for shared modules
+│   ├── order-service/
+│   │   ├── src/
+│   │   │   ├── main.ts                        # NestJS entrypoint
+│   │   │   ├── app.module.ts                  # Root module
+│   │   │   ├── orders/
+│   │   │   │   ├── orders.controller.ts       # Orders REST controller
+│   │   │   │   ├── orders.service.ts          # Orders business logic
+│   │   │   │   ├── orders.module.ts           # Orders module
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── order.dto.ts           # Order interfaces
+│   │   │   │   │   └── index.ts               # DTO exports
+│   │   │   │   └── entities/
+│   │   │   │       ├── order.entity.ts        # TypeORM entity
+│   │   │   │       └── order-item.entity.ts   # TypeORM entity
+│   │   │   ├── database/
+│   │   │   │   └── database.module.ts         # DB connection config
+│   │   │   └── redis/
+│   │   │       └── redis.module.ts            # Redis connection
+│   │   ├── Dockerfile                         # Docker build for order-service
+│   │   ├── .env.example                       # Env vars template
+│   │   └── README.md                          # Service documentation
+│   ├── kpi-service/
+│   │   ├── src/
+│   │   │   ├── main.ts                        # NestJS entrypoint
+│   │   │   ├── app.module.ts                  # Root module
+│   │   │   ├── kpi/
+│   │   │   │   ├── kpi.controller.ts          # KPI REST controller
+│   │   │   │   ├── kpi.service.ts             # KPI business logic
+│   │   │   │   ├── kpi.module.ts              # KPI module
+│   │   │   │   └── dto/
+│   │   │   │       ├── kpi.dto.ts             # KPI interfaces
+│   │   │   │       └── index.ts               # DTO exports
+│   │   │   ├── database/
+│   │   │   │   └── database.module.ts         # DB connection config
+│   │   │   └── redis/
+│   │   │       └── redis.module.ts            # Redis connection
+│   │   ├── Dockerfile                         # Docker build for kpi-service
+│   │   ├── .env.example                       # Env vars template
+│   │   └── README.md                          # Service documentation
+│   └── shared/
+│       ├── kpi.dto.ts                         # Shared KPI DTO
+│       └── index.ts                           # Shared exports
 ├── frontend/
-│   ├── Dockerfile                    # Docker build for React app
 │   ├── public/
-│   │   ├── index.html                # HTML entry point
+│   │   └── index.html                         # HTML entrypoint
 │   ├── src/
-│   │   ├── main.tsx                  # React entry point
-│   │   ├── App.tsx                   # Root component
-│   │   ├── components/
-│   │   │   ├── Dashboard.tsx         # Dashboard metrics display
-│   │   │   ├── OrderList.tsx         # List of orders
-│   │   │   ├── OrderForm.tsx         # Form to create new order
-│   │   ├── hooks/
-│   │   │   ├── useDashboard.ts       # Dashboard state hook
-│   │   │   └── useOrders.ts          # Orders state hook
-│   │   ├── types/
-│   │   │   ├── order.ts              # Order interface
-│   │   │   ├── create-order.ts       # CreateOrder interface
-│   │   │   └── dashboard-metrics.ts  # DashboardMetrics interface
+│   │   ├── main.tsx                           # React entrypoint
+│   │   ├── App.tsx                            # Root component
 │   │   ├── api/
-│   │   │   ├── dashboard.ts          # Dashboard API client
-│   │   │   └── orders.ts             # Orders API client
-│   ├── .env.example                  # Frontend environment variables template
-│   ├── tsconfig.json                 # TypeScript config
-│   ├── package.json                  # NPM dependencies
-│   └── README.md                     # Frontend documentation
-├── docker-compose.yml                # Multi-service orchestration
-├── run.sh                            # Startup script for local dev
-├── .gitignore                        # Ignore node_modules, build, env, etc.
-└── README.md                         # Project overview
+│   │   │   ├── orders.ts                      # Orders API client
+│   │   │   └── kpi.ts                         # KPI API client
+│   │   ├── components/
+│   │   │   ├── Dashboard.tsx                  # KPI dashboard
+│   │   │   ├── OrderForm.tsx                  # Order creation form
+│   │   │   ├── OrderList.tsx                  # Orders table/list
+│   │   │   └── OrderStatusBadge.tsx           # Status badge
+│   │   ├── hooks/
+│   │   │   ├── useOrders.ts                   # Orders state hook
+│   │   │   └── useKPI.ts                      # KPI state hook
+│   │   ├── types/
+│   │   │   ├── order.ts                       # Order interfaces
+│   │   │   └── kpi.ts                         # KPI interface
+│   │   └── styles/
+│   │       └── main.css                       # Global styles
+│   ├── Dockerfile                             # Docker build for frontend
+│   ├── .env.example                           # Env vars template
+│   └── README.md                              # Frontend documentation
+├── docker-compose.yml                         # Multi-service orchestration
+├── start.sh                                   # Startup script for all services
+├── .env.example                               # Root env vars template
+├── .gitignore                                 # Git ignore rules
+└── README.md                                  # Project overview
 ```
-
----
 
 ## 5. ENVIRONMENT VARIABLES
 
-### backend/.env.example
+### Root `.env.example`
 
-```
-# PostgreSQL
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_USER=distroviz
-POSTGRES_PASSWORD=supersecret
-POSTGRES_DB=distroviz
+| Name                | Type   | Description                                 | Example Value           |
+|---------------------|--------|---------------------------------------------|------------------------|
+| NODE_ENV            | string | Node environment                            | production             |
+| POSTGRES_HOST       | string | PostgreSQL host                             | postgres               |
+| POSTGRES_PORT       | int    | PostgreSQL port                             | 5432                   |
+| POSTGRES_USER       | string | PostgreSQL username                         | distroviz              |
+| POSTGRES_PASSWORD   | string | PostgreSQL password                         | secret                 |
+| POSTGRES_DB         | string | PostgreSQL database name                    | distroviz_db           |
+| REDIS_HOST          | string | Redis host                                  | redis                  |
+| REDIS_PORT          | int    | Redis port                                  | 6379                   |
+| RABBITMQ_HOST       | string | RabbitMQ host                               | rabbitmq               |
+| RABBITMQ_PORT       | int    | RabbitMQ port                               | 5672                   |
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
+### `backend/order-service/.env.example` and `backend/kpi-service/.env.example`
 
-# NestJS
-PORT=23001
-NODE_ENV=development
-```
+| Name                | Type   | Description                                 | Example Value           |
+|---------------------|--------|---------------------------------------------|------------------------|
+| SERVICE_PORT        | int    | Service listening port                      | 23001 (order), 23002 (kpi) |
+| POSTGRES_HOST       | string | PostgreSQL host                             | postgres               |
+| POSTGRES_PORT       | int    | PostgreSQL port                             | 5432                   |
+| POSTGRES_USER       | string | PostgreSQL username                         | distroviz              |
+| POSTGRES_PASSWORD   | string | PostgreSQL password                         | secret                 |
+| POSTGRES_DB         | string | PostgreSQL database name                    | distroviz_db           |
+| REDIS_HOST          | string | Redis host                                  | redis                  |
+| REDIS_PORT          | int    | Redis port                                  | 6379                   |
+| RABBITMQ_HOST       | string | RabbitMQ host                               | rabbitmq               |
+| RABBITMQ_PORT       | int    | RabbitMQ port                               | 5672                   |
 
-### frontend/.env.example
+### `frontend/.env.example`
 
-```
-# API base URL
-VITE_API_URL=http://localhost:23001/api
-```
-
-### docker-compose.yml (host-side ports in 21000–65000 range)
-
-- **POSTGRES_PORT:** 25432 (host) → 5432 (container)
-- **REDIS_PORT:** 26379 (host) → 6379 (container)
-- **API_PORT:** 23001 (host) → 23001 (container)
-- **FRONTEND_PORT:** 24000 (host) → 80 (container)
-
----
+| Name                | Type   | Description                                 | Example Value           |
+|---------------------|--------|---------------------------------------------|------------------------|
+| VITE_API_URL        | string | Base URL for backend API                    | http://localhost:23001 |
 
 ## 6. IMPORT CONTRACTS
 
 ### Backend
 
 ```typescript
-// Orders
-import { Order } from './orders/dto/order.dto';
-import { CreateOrderDto } from './orders/dto/create-order.dto';
+// backend/order-service/src/orders/dto/order.dto.ts
+export { Order, OrderItem, OrderCreate, OrderItemCreate, OrderUpdateStatus } from './order.dto';
 
-// Dashboard
-import { DashboardMetrics } from './dashboard/dto/dashboard-metrics.dto';
+// backend/shared/kpi.dto.ts
+export { KPI } from './kpi.dto';
 
-// Database
-import { OrderEntity } from './database/entities/order.entity';
+// backend/order-service/src/orders/orders.service.ts
+export class OrdersService {
+  findAll(): Promise<Order[]>;
+  findOne(id: number): Promise<Order>;
+  create(order: OrderCreate): Promise<Order>;
+  updateStatus(id: number, status: OrderUpdateStatus): Promise<Order>;
+  remove(id: number): Promise<{ success: boolean }>;
+}
 
-// Cache
-import { CacheService } from './cache/cache.service';
-
-// Controllers/Services
-import { OrdersService } from './orders/orders.service';
-import { OrdersController } from './orders/orders.controller';
-import { DashboardService } from './dashboard/dashboard.service';
-import { DashboardController } from './dashboard/dashboard.controller';
+// backend/kpi-service/src/kpi/kpi.service.ts
+export class KPIService {
+  getKPI(): Promise<KPI>;
+}
 ```
 
 ### Frontend
 
 ```typescript
-// Types
-import { Order } from '../types/order';
-import { CreateOrder } from '../types/create-order';
-import { DashboardMetrics } from '../types/dashboard-metrics';
+// frontend/src/hooks/useOrders.ts
+export function useOrders(): {
+  orders: Order[];
+  loading: boolean;
+  error: string | null;
+  createOrder: (order: OrderCreate) => Promise<void>;
+  updateOrderStatus: (id: number, status: OrderUpdateStatus) => Promise<void>;
+  deleteOrder: (id: number) => Promise<void>;
+  deletingId: number | null;
+};
 
-// Hooks
-import { useOrders } from '../hooks/useOrders';
-import { useDashboard } from '../hooks/useDashboard';
-
-// API
-import { fetchOrders, createOrder } from '../api/orders';
-import { fetchDashboardMetrics } from '../api/dashboard';
-
-// Components
-import { Dashboard } from '../components/Dashboard';
-import { OrderList } from '../components/OrderList';
-import { OrderForm } from '../components/OrderForm';
+// frontend/src/hooks/useKPI.ts
+export function useKPI(): {
+  kpi: KPI | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+};
 ```
-
----
 
 ## 7. FRONTEND STATE & COMPONENT CONTRACTS
 
-### React Hooks
+### Shared State Primitives
 
-```typescript
-// useOrders() → { orders, loading, error, createOrder, refreshOrders }
-useOrders() → {
-  orders: Order[];
-  loading: boolean;
-  error: string | null;
-  createOrder: (data: CreateOrder) => Promise<void>;
-  refreshOrders: () => Promise<void>;
+```
+React hook: useOrders() → {
+  orders,
+  loading,
+  error,
+  createOrder,
+  updateOrderStatus,
+  deleteOrder,
+  deletingId
 }
 
-// useDashboard() → { metrics, loading, error, refreshDashboard }
-useDashboard() → {
-  metrics: DashboardMetrics | null;
-  loading: boolean;
-  error: string | null;
-  refreshDashboard: () => Promise<void>;
+React hook: useKPI() → {
+  kpi,
+  loading,
+  error,
+  refresh
 }
 ```
 
-### Components
+### Reusable Components
 
-```typescript
-// Dashboard  props: { metrics: DashboardMetrics | null, loading: boolean }
-Dashboard props: {
-  metrics: DashboardMetrics | null;
-  loading: boolean;
+```
+OrderList props/inputs: {
+  orders: Order[],
+  onUpdateStatus: (id: number, status: OrderUpdateStatus) => void,
+  onDelete: (id: number) => void,
+  deletingId: number | null
 }
 
-// OrderList  props: { orders: Order[], loading: boolean }
-OrderList props: {
-  orders: Order[];
-  loading: boolean;
+OrderForm props/inputs: {
+  onSubmit: (data: OrderCreate) => void,
+  loading: boolean
 }
 
-// OrderForm  props: { onSubmit: (data: CreateOrder) => void, loading: boolean }
-OrderForm props: {
-  onSubmit: (data: CreateOrder) => void;
-  loading: boolean;
+Dashboard props/inputs: {
+  kpi: KPI | null,
+  loading: boolean
+}
+
+OrderStatusBadge props/inputs: {
+  status: 'pending' | 'in_transit' | 'delivered' | 'cancelled'
 }
 ```
-
----
 
 ## 8. FILE EXTENSION CONVENTION
 
 - **Frontend files:** `.tsx` (TypeScript React)
 - **Backend files:** `.ts` (TypeScript)
 - **Project language:** TypeScript (no JavaScript files)
-- **Frontend entry point:** `/src/main.tsx` (as referenced in `public/index.html`)
-
----
-
-**All field names, types, and API contracts must be used verbatim as specified above. All host-side ports in docker-compose.yml must be in the 21000–65000 range. All shared state and component prop names must match exactly as declared.**
+- **Entry point:** `/src/main.tsx` (as referenced in `<script type="module" src="/src/main.tsx"></script>` in `frontend/public/index.html`)

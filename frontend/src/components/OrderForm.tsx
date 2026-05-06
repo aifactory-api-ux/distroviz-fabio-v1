@@ -1,136 +1,159 @@
 import React, { useState } from 'react';
-import { CreateOrder } from '../types/create-order';
+import { OrderCreate, OrderItemCreate } from '../types/order';
 
 interface OrderFormProps {
-  onSubmit: (data: CreateOrder) => Promise<void>;
+  onSubmit: (data: OrderCreate) => void;
   loading: boolean;
 }
 
 export function OrderForm({ onSubmit, loading }: OrderFormProps) {
-  const [formData, setFormData] = useState<CreateOrder>({
-    product_name: '',
-    quantity: 0,
-    plant: '',
-    distribution_center: '',
-  });
-  const [errors, setErrors] = useState<string[]>([]);
-  const [success, setSuccess] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [address, setAddress] = useState('');
+  const [items, setItems] = useState<OrderItemCreate[]>([
+    { productName: '', quantity: 1, unitPrice: 0 },
+  ]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'quantity' ? parseInt(value) || 0 : value
-    }));
-    setErrors([]);
-    setSuccess(false);
+  const handleItemChange = (
+    index: number,
+    field: keyof OrderItemCreate,
+    value: string | number,
+  ) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setItems(newItems);
   };
 
-  const validate = (): boolean => {
-    const newErrors: string[] = [];
-    if (!formData.product_name) newErrors.push('product_name');
-    if (formData.quantity <= 0) newErrors.push('quantity');
-    if (!formData.plant) newErrors.push('plant');
-    if (!formData.distribution_center) newErrors.push('distribution_center');
-    setErrors(newErrors);
-    return newErrors.length === 0;
+  const addItem = () => {
+    setItems([...items, { productName: '', quantity: 1, unitPrice: 0 }]);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    try {
-      await onSubmit(formData);
-      setSuccess(true);
-      setFormData({ product_name: '', quantity: 0, plant: '', distribution_center: '' });
-    } catch (error) {
-      setErrors(['Failed to create order']);
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({ customerName, address, items });
+    setCustomerName('');
+    setAddress('');
+    setItems([{ productName: '', quantity: 1, unitPrice: 0 }]);
+  };
+
   return (
-    <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Create New Order</h2>
+    <form onSubmit={handleSubmit} style={{ maxWidth: '600px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '16px' }}>Create Order</h2>
 
-      {success && (
-        <div style={{ padding: '10px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '4px', marginBottom: '15px' }}>
-          Order created successfully!
-        </div>
-      )}
-
-      {errors.length > 0 && errors[0] && !errors.includes('Failed to create order') && (
-        <div data-testid="validation-error" style={{ padding: '10px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', marginBottom: '15px' }}>
-          Please fill in: {errors.join(', ')}
-        </div>
-      )}
-
-      {errors.includes('Failed to create order') && (
-        <div data-testid="error-message" style={{ padding: '10px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', marginBottom: '15px' }}>
-          Failed to create order
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Product Name</label>
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '4px' }}>
+          Customer Name
           <input
             type="text"
-            name="product_name"
-            value={formData.product_name}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
           />
-        </div>
+        </label>
+      </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Quantity</label>
-          <input
-            type="number"
-            name="quantity"
-            value={formData.quantity || ''}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Plant</label>
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '4px' }}>
+          Address
           <input
             type="text"
-            name="plant"
-            value={formData.plant}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
           />
-        </div>
+        </label>
+      </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Distribution Center</label>
-          <input
-            type="text"
-            name="distribution_center"
-            value={formData.distribution_center}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
+      <div style={{ marginBottom: '16px' }}>
+        <h3 style={{ marginBottom: '8px' }}>Items</h3>
+        {items.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '8px',
+              alignItems: 'flex-end',
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Product Name"
+              value={item.productName}
+              onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
+              required
+              style={{ flex: 2, padding: '8px' }}
+            />
+            <input
+              type="number"
+              placeholder="Qty"
+              value={item.quantity}
+              onChange={(e) =>
+                handleItemChange(index, 'quantity', parseInt(e.target.value, 10) || 0)
+              }
+              required
+              min="1"
+              style={{ flex: 1, padding: '8px' }}
+            />
+            <input
+              type="number"
+              placeholder="Price"
+              value={item.unitPrice}
+              onChange={(e) =>
+                handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)
+              }
+              required
+              min="0"
+              step="0.01"
+              style={{ flex: 1, padding: '8px' }}
+            />
+            {items.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeItem(index)}
+                style={{ padding: '8px 12px', backgroundColor: '#ef4444', color: '#fff' }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
         <button
-          type="submit"
-          disabled={loading}
+          type="button"
+          onClick={addItem}
           style={{
-            padding: '10px 20px',
-            backgroundColor: loading ? '#ccc' : '#007bff',
+            padding: '8px 16px',
+            backgroundColor: '#3b82f6',
             color: '#fff',
             border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: 'pointer',
           }}
         >
-          {loading ? 'Creating...' : 'Create Order'}
+          Add Item
         </button>
-      </form>
-    </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        style={{
+          padding: '12px 24px',
+          backgroundColor: '#22c55e',
+          color: '#fff',
+          border: 'none',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.6 : 1,
+        }}
+      >
+        {loading ? 'Creating...' : 'Create Order'}
+      </button>
+    </form>
   );
 }
